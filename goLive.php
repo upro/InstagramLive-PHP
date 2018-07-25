@@ -1,6 +1,6 @@
 <?php
 if (php_sapi_name() !== "cli") {
-    die("You may only run this inside of the PHP Command Line! If you did run this in the command line, please report: \"".php_sapi_name()."\" to the InstagramLive-PHP Repo!");
+    die("\033[41m\033[37mYou may only run this inside of the PHP Command Line! If you did run this in the command line, please report: \"".php_sapi_name()."\" to the InstagramLive-PHP Repo!\033[0m");
 }
 
 logM("Loading InstagramLive-PHP v0.4...");
@@ -19,13 +19,14 @@ $truncatedDebug = false;
 /////////////////////////////////////////////////////
 
 if (IG_USERNAME == "USERNAME" || IG_PASS == "PASSWORD") {
-    logM("Default Username and Passwords have not been changed! Exiting...");
+    logM("\033[41m\033[37mDefault Username and Passwords have not been changed! Exiting...\033[0m");
     exit();
 }
 
 //Login to Instagram
 logM("Logging into Instagram...");
 $ig = new Instagram($debug, $truncatedDebug);
+
 try {
     $loginResponse = $ig->login(IG_USERNAME, IG_PASS);
 
@@ -40,23 +41,22 @@ try {
     }
 } catch (\Exception $e) {
     if (strpos($e->getMessage(), "Challenge") !== false) {
-        logM("Account Flagged: Please sign out of all phones and try logging into instagram.com from this computer before trying to run this script again!");
+        logM("\033[41m\033[37mAccount Flagged: Please sign out of all phones and try logging into instagram.com from this computer before trying to run this script again!\033[0m");
         exit();
     }
-    echo 'Error While Logging in to Instagram: '.$e->getMessage()."\n";
+    echo "\033[41m\033[37mError While Logging in to Instagram: ".$e->getMessage()."\033[0m\n";
     exit(0);
 }
 
 //Block Responsible for Creating the Livestream.
 try {
     if (!$ig->isMaybeLoggedIn) {
-        logM("Couldn't Login! Exiting!");
+        logM("\033[41m\033[37mCouldn't Login! Exiting!\033[0m");
         exit();
     }
-    logM("Logged In! Creating Livestream...");
+    logM("Logged In! \033[32mCreating Livestream\033[0m...");
     $stream = $ig->live->create();
     $broadcastId = $stream->getBroadcastId();
-    $ig->live->start($broadcastId);
     // Switch from RTMPS to RTMP upload URL, since RTMPS doesn't work well.
     $streamUploadUrl = preg_replace(
         '#^rtmps://([^/]+?):443/#ui',
@@ -70,19 +70,25 @@ try {
     $streamUrl = $split[0];
     $streamKey = $broadcastId.$split[1];
 
-    logM("================================ Stream URL ================================\n".$streamUrl."\n================================ Stream URL ================================");
+    logM("\n");
+    logM("================================ Stream URL ================================\n\033[36m".$streamUrl."\033[0m\n================================ Stream URL ================================");
 
-    logM("======================== Current Stream Key ========================\n".$streamKey."\n======================== Current Stream Key ========================");
+    logM("======================== Current Stream Key ========================\n\033[45m\033[37m".$streamKey."\033[0m\n======================== Current Stream Key ========================");
+    logM("\n");
 
-    logM("^^ Please Start Streaming in OBS/Streaming Program with the URL and Key Above ^^");
+    logM("\033[41m\033[37m!!!!! Please Start Streaming in your encoder then start live withe command \033[43m\033[30m'start'\033[41m\033[37m !!!!!\033[0m");
+
+    logM("\n");
 
     logM("Live Stream is Ready for Commands:");
+    printHepler();
+
     newCommand($ig->live, $broadcastId, $streamUrl, $streamKey);
-    logM("Something Went Super Wrong! Attempting to At-Least Clean Up!");
+    logM("\033[41m\033[37mSomething Went Super Wrong! Attempting to At-Least Clean Up!\033[0m");
     $ig->live->getFinalViewerList($broadcastId);
     $ig->live->end($broadcastId);
 } catch (\Exception $e) {
-    echo 'Error While Creating Livestream: '.$e->getMessage()."\n";
+    echo "\033[41m\033[37mError While Creating Livestream: ".$e->getMessage()."\033[0m\n";
 }
 
 /**
@@ -97,7 +103,7 @@ function newCommand(Live $live, $broadcastId, $streamUrl, $streamKey) {
         logM("Enabled Comments!");
     } elseif ($line == 'dcomments') {
         $live->disableComments($broadcastId);
-        logM("Disabled Comments!");
+        logM("\033[43m\033[30mDisabled Comments!\033[0m");
     } elseif ($line == 'stop' || $line == 'end') {
         fclose($handle);
         //Needs this to retain, I guess?
@@ -112,12 +118,10 @@ function newCommand(Live $live, $broadcastId, $streamUrl, $streamKey) {
             $live->addToPostLive($broadcastId);
             logM("Livestream added to archive!");
         }
-        logM("Wrapping up and exiting...");
-        exit();
     } elseif ($line == 'url') {
-        logM("================================ Stream URL ================================\n".$streamUrl."\n================================ Stream URL ================================");
+        logM("================================ Stream URL ================================\n\033[36m".$streamUrl."\033[0m\n================================ Stream URL ================================");
     } elseif ($line == 'key') {
-        logM("======================== Current Stream Key ========================\n".$streamKey."\n======================== Current Stream Key ========================");
+        logM("======================== Current Stream Key ========================\n\033[45m\033[30m".$streamKey."\033[0m\n======================== Current Stream Key ========================");
     } elseif ($line == 'info') {
         $info = $live->getInfo($broadcastId);
         $status = $info->getStatus();
@@ -131,12 +135,26 @@ function newCommand(Live $live, $broadcastId, $streamUrl, $streamKey) {
             logM("@".$cuser->getUsername()." (".$cuser->getFullName().")");
         }
     } elseif ($line == 'help') {
-        logM("Commands:\nhelp - Prints this message\nurl - Prints Stream URL\nkey - Prints Stream Key\ninfo - Grabs Stream Info\nviewers - Grabs Stream Viewers\necomments - Enables Comments\ndcomments - Disables Comments\nstop - Stops the Live Stream");
+        printHepler();
+    }
+    elseif ($line == 'start') {
+        $live->start($broadcastId);
+        logM("\033[42m\033[37mLive is started\033[0m");
+
+        $live->disableComments($broadcastId);
+        logM("\033[43m\033[30m/!\\ Comments are disable by default!\033[0m");
+    } elseif ($line == 'exit') {
+        logM("Wrapping up and exiting...");
+        exit();
     } else {
        logM("Invalid Command. Type \"help\" for help!");
     }
     fclose($handle);
     newCommand($live, $broadcastId, $streamUrl, $streamKey);
+}
+
+function printHepler() {
+    logM("Commands:\nhelp - Prints this message\nsart - Start the live\nurl - Prints Stream URL\nkey - Prints Stream Key\ninfo - Grabs Stream Info\nviewers - Grabs Stream Viewers\necomments - Enables Comments\ndcomments - Disables Comments\nstop - Stops the Live Stream\nexit - Exite programm");
 }
 
 /**
